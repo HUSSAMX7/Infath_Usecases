@@ -1,0 +1,10 @@
+{
+  "name": "invoice-studio", "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"node scripts/python.mjs -m backend\" \"npm --prefix frontend run dev\"",
+    "build": "npm --prefix frontend run build",
+    "test": "node scripts/python.mjs -m pytest backend/tests -q && npm --prefix frontend test",
+    "test:e2e": "npm --prefix frontend run test:e2e"
+  },
+  "devDependencies": {"concurrently": "^9.2.1"}
+}

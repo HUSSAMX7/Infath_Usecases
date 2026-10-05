@@ -1,0 +1,83 @@
+{
+  "command": [
+    "D:\\python\\Infath_Usecases\\.local\\lightonocr\\runtime\\b11387\\llama-server.exe",
+    "-m",
+    "D:\\python\\Infath_Usecases\\.local\\lightonocr\\models\\LightOnOCR-2-1B-Q8_0.gguf",
+    "--mmproj",
+    "D:\\python\\Infath_Usecases\\.local\\lightonocr\\models\\mmproj-LightOnOCR-2-1B-f16.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "18987",
+    "-ngl",
+    "0",
+    "--no-mmproj-offload",
+    "-t",
+    "4",
+    "-tb",
+    "4",
+    "-c",
+    "4096",
+    "--parallel",
+    "1",
+    "--no-webui"
+  ],
+  "image": "D:\\python\\Infath_Usecases\\.local\\lightonocr\\inputs\\handwritten-invoice.png",
+  "request": {
+    "temperature": 0,
+    "max_tokens": 2048,
+    "prompt": "image-only, matching the LightOnOCR model example"
+  },
+  "runtime_manifest": {
+    "model_source": "lightonai/LightOnOCR-2-1B",
+    "gguf_repo": "ggml-org/LightOnOCR-2-1B-GGUF",
+    "gguf_revision": "7d4daf70c2856a155b1413def00f4ae59843a9cf",
+    "llama_cpp_release": "b11387",
+    "text_weights": "LightOnOCR-2-1B-Q8_0.gguf",
+    "vision_weights": "mmproj-LightOnOCR-2-1B-f16.gguf",
+    "image_path": "D:\\python\\Infath_Usecases\\.local\\lightonocr\\inputs\\handwritten-invoice.png",
+    "image_sha256": "725343e197f7d95b5bcd62084eb87364e87e5f1ac986dd546799bd5c7f5dbbf3",
+    "files": [
+      {
+        "name": "llama-b11387-bin-win-cpu-x64.zip",
+        "size": 19365702,
+        "sha256": "52bfd6002e6a3e51feba42ac455c5b4ad991cf1c28d8902d5a3a22eacceda512"
+      },
+      {
+        "name": "LightOnOCR-2-1B-Q8_0.gguf",
+        "size": 639443584,
+        "sha256": "f4cfc0ea9765a4cac22a235191c48aefa94df223419f5ab658b6201f36206d58"
+      },
+      {
+        "name": "mmproj-LightOnOCR-2-1B-f16.gguf",
+        "size": 819312896,
+        "sha256": "1c4a3a27f7c5aa90b455ed5ec6dc79c9b9746739a8d840022790414376738130"
+      }
+    ]
+  },
+  "mode": "CPU only; no image uploaded to an external service",
+  "model_startup_seconds": 11.359588699997403,
+  "generation_seconds": 205.71068039999227,
+  "first_token_seconds": 126.5797559999919,
+  "usage": {
+    "completion_tokens": 787,
+    "prompt_tokens": 2159,
+    "total_tokens": 2946,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "finish_reason": "stop",
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 2159,
+    "prompt_ms": 126349.614,
+    "prompt_per_token_ms": 58.52228531727652,
+    "prompt_per_second": 17.087507683244684,
+    "predicted_n": 787,
+    "predicted_ms": 79146.32,
+    "predicted_per_token_ms": 100.69506361323157,
+    "predicted_per_second": 9.930973417336396
+  },
+  "output_characters": 1609
+}

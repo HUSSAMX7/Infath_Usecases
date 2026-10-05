@@ -1,0 +1,25 @@
+{
+  "provenance": "Human review of raw_ocr.md, compared with manual_reference.json. LightOnOCR produced Markdown and HTML, not this JSON. No extraction LLM was called.",
+  "normalization": "Arabic digits converted to ASCII; thousands separators removed; date formatted as ISO. Supplier text retained as recognized in the OCR heading.",
+  "fields": {
+    "invoice_number": "INV-1042",
+    "supplier_name": "XYZ للمقاولات والصيانة",
+    "invoice_date": "2024-05-20",
+    "total_amount": 16330,
+    "tax_amount": 2080,
+    "currency_label": "ريال"
+  },
+  "review": {
+    "invoice_number": "match",
+    "supplier_name": "partial: heading omits شركة; stamp text is fragmented",
+    "invoice_date": "match after digit and date normalization",
+    "total_amount": "match after digit normalization",
+    "tax_amount": "match after digit normalization",
+    "currency_label": "match; SAR was not an explicit OCR token"
+  },
+  "validation_flags": [
+    "Written line totals sum to 17250, but written subtotal is 14250.",
+    "15% of written subtotal is 2137.50, but written tax is 2080.",
+    "Written subtotal plus written tax correctly equals written grand total: 14250 + 2080 = 16330."
+  ]
+}

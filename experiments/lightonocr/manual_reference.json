@@ -1,0 +1,43 @@
+{
+  "reference_source": "Manual transcription from the original attached image before OCR inference; not a model output.",
+  "image_description": "Photographed, tilted Arabic handwritten tax invoice with table and stamp.",
+  "fields": {
+    "supplier_name": "شركة XYZ للمقاولات والصيانة",
+    "invoice_number": "INV-1042",
+    "invoice_date": "2024/05/20",
+    "total_amount": "16,330",
+    "tax_amount": "2,080",
+    "currency_label": "ريال"
+  },
+  "additional_numeric_landmarks": {
+    "supplier_tax_id": "310987654321003",
+    "customer_tax_id": "310123456789000",
+    "row_1_quantity": "3",
+    "row_1_unit_price": "4,500",
+    "row_1_total": "13,500",
+    "row_2_quantity": "5",
+    "row_2_unit_price": "450",
+    "row_2_total": "2,250",
+    "row_3_quantity": "1",
+    "row_3_unit_price": "1,500",
+    "row_3_total": "1,500",
+    "written_subtotal": "14,250",
+    "written_tax_rate": "15%"
+  },
+  "additional_text_landmarks": [
+    "فاتورة ضريبية",
+    "مؤسسة النور التجارية",
+    "صيانة أنظمة التكييف",
+    "قطع غيار",
+    "أجور فنيين",
+    "info@xyz.com"
+  ],
+  "source_arithmetic": {
+    "sum_of_written_line_totals": 17250,
+    "written_subtotal": 14250,
+    "written_tax_amount": 2080,
+    "tax_if_15_percent_of_written_subtotal": 2137.5,
+    "written_grand_total": 16330,
+    "note": "Read values as written. The source itself has arithmetic discrepancies; do not silently correct the OCR reference."
+  }
+}
