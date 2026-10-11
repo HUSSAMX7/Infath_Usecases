@@ -16,7 +16,7 @@ export interface Document extends Invoice {
   ocr_text: string; ocr_model: string; llm_input: string | null; analysis: {model: string; seconds: number; raw_response: unknown; usage: unknown} | null;
   failure_details: unknown; attempt_seconds: number | null; warnings_acknowledged: boolean;
 }
-export interface Health {ocr: {available: boolean; state: string; model: string}; openai: {configured: boolean; model: string}; limits: {max_files: number; max_file_mb: number; max_pages: number}}
+export interface Health {ocr: {available: boolean; state: string; model: string}; openrouter: {configured: boolean; model: string}; limits: {max_files: number; max_file_mb: number; max_pages: number}}
 export interface ReviewPayload {extracted_data: InvoiceData; items: LineItem[]; final_classification: Category | null; acknowledge_warnings: boolean}
 export const CATEGORIES: Record<Category, string> = {computers:'أجهزة كمبيوتر',mobile_devices:'جوالات وأجهزة لوحية',printers_office:'طابعات ومعدات مكتبية',tech_accessories:'ملحقات تقنية'};
 export const STATUS_LABELS: Record<Status, string> = {queued:'في الانتظار',processing:'قيد المعالجة',classified:'جاهزة للمراجعة',needs_review:'تحتاج مراجعة',reviewed:'تم الاعتماد',failed:'توقفت المعالجة'};

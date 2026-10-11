@@ -65,7 +65,7 @@ def create_app(settings: Settings | None = None, *, ocr=None, classifier=None, s
     @app.get('/api/health')
     def health():
         return {'status': 'ok', 'ocr': {'available': ocr.available(), 'state': ocr.state, 'model': ocr.model_name},
-                'openai': {'configured': bool(settings.openai_key), 'model': settings.openai_model},
+                'openrouter': {'configured': bool(settings.openrouter_key), 'model': settings.openrouter_model},
                 'limits': {'max_files': settings.max_files, 'max_file_mb': settings.max_file_mb, 'max_pages': settings.max_pages},
                 'categories': [{'key': key.value, 'label': label} for key, label in LABELS.items()],
                 'confidence_threshold': settings.confidence_threshold}

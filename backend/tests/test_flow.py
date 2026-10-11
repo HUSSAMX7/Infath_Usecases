@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+import httpx
+from openai import OpenAI
 from PIL import Image
 import pytest
 
@@ -49,7 +51,7 @@ class FakeClassifier:
 
 @pytest.fixture
 def env(tmp_path):
-    settings = Settings(data_dir=tmp_path, openai_key='')
+    settings = Settings(data_dir=tmp_path, openrouter_key='')
     ocr, classifier = FakeOCR(), FakeClassifier()
     app = create_app(settings, ocr=ocr, classifier=classifier, start_worker=False)
     with TestClient(app) as client:
@@ -83,18 +85,31 @@ def process(env):
 ])
 def test_classifier_structured_contract(items,category,tmp_path):
     # Fixtures verify transport, enum/schema and prompt, not real-model accuracy.
-    expected=Proposal.model_validate(proposal(category))
     calls=[]
-    response=SimpleNamespace(status='completed', output=[], output_parsed=expected, usage=None,
-                             model_dump=lambda **kw:{'test_double':True})
-    def parse(**kwargs): calls.append(kwargs); return response
-    classifier=InvoiceClassifier(Settings(data_dir=tmp_path,openai_key=''),SimpleNamespace(responses=SimpleNamespace(parse=parse)))
-    result=classifier.classify_invoice(items)
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200,json=completion(proposal(category)))
+    with OpenAI(api_key='TEST ONLY',base_url='https://openrouter.ai/api/v1',
+                http_client=httpx.Client(transport=httpx.MockTransport(respond))) as client:
+        classifier=InvoiceClassifier(Settings(data_dir=tmp_path,openrouter_key=''),client)
+        result=classifier.classify_invoice(items)
+    payload=json.loads(calls[0].content)
     assert result['proposal']['classification']==category
-    assert calls[0]['text_format'] is Proposal
-    assert calls[0]['store'] is False
-    assert items in calls[0]['input'][1]['content']
+    assert str(calls[0].url)=='https://openrouter.ai/api/v1/chat/completions'
+    assert payload['model']=='qwen/qwen3.8-27b'
+    assert payload['response_format']['json_schema']['schema']==Proposal.model_json_schema()
+    assert payload['response_format']['json_schema']['strict'] is True
+    assert payload['provider']['require_parameters'] is True
+    assert items in payload['messages'][1]['content']
+    assert 'input' not in payload and 'store' not in payload
     assert 'monetary contribution' in SYSTEM_PROMPT
+
+
+def completion(data=None, *, finish_reason='stop', refusal=None, content=None):
+    return {'id':'test-completion','object':'chat.completion','created':0,'model':'qwen/qwen3.8-27b',
+            'choices':[{'index':0,'finish_reason':finish_reason,'message':{
+                'role':'assistant','content':json.dumps(data) if data is not None else content,'refusal':refusal}}],
+            'usage':{'prompt_tokens':10,'completion_tokens':20,'total_tokens':30}}
 
 
 def test_full_review_retains_ai_and_persists(env):
@@ -152,7 +167,7 @@ def test_missing_fields_never_become_zero(env):
 
 
 def test_analysis_retry_reuses_ocr(env):
-    env.classifier.error=StageError('openai_not_configured','no key')
+    env.classifier.error=StageError('openrouter_not_configured','no key')
     invoice_id=upload(env);doc=process(env)
     assert doc['status']=='failed' and doc['stage']=='analysis'
     assert doc['ocr_text'] and doc['pages'][0]['text']
@@ -200,12 +215,58 @@ def test_invalid_category_and_nonfinite_money_rejected():
     with pytest.raises(ValueError): Proposal.model_validate(invalid)
 
 
-def test_missing_key_refusal_and_incomplete(tmp_path):
-    with pytest.raises(StageError,match='OPENAI_API_KEY'):
-        InvoiceClassifier(Settings(data_dir=tmp_path,openai_key='')).classify_invoice('text')
-    for status,content,code in [('completed',[SimpleNamespace(type='refusal')],'openai_refusal'),('incomplete',[],'openai_incomplete')]:
-        response=SimpleNamespace(status=status,output=[SimpleNamespace(content=content)],output_parsed=None,model_dump=lambda **kwargs:{'status':status})
-        client=SimpleNamespace(responses=SimpleNamespace(parse=lambda **kwargs:response))
+def test_missing_openrouter_key(tmp_path):
+    with pytest.raises(StageError,match='OPENROUTER_API_KEY'):
+        InvoiceClassifier(Settings(data_dir=tmp_path,openrouter_key='')).classify_invoice('text')
+
+
+@pytest.mark.parametrize('body,code',[
+    (completion(refusal='Cannot process'),'openrouter_refusal'),
+    (completion(finish_reason='content_filter'),'openrouter_refusal'),
+    (completion(proposal(),finish_reason='length'),'openrouter_incomplete'),
+    (completion(),'openrouter_incomplete'),
+    ({**completion(),'choices':[]},'openrouter_incomplete'),
+    (completion(content='not JSON'),'openrouter_invalid_output'),
+    (completion({'classification':'made_up'}),'openrouter_invalid_output'),
+])
+def test_openrouter_rejects_unusable_output(tmp_path,body,code):
+    with OpenAI(api_key='TEST ONLY',base_url='https://openrouter.ai/api/v1',
+                http_client=httpx.Client(transport=httpx.MockTransport(lambda request:httpx.Response(200,json=body)))) as client:
         with pytest.raises(StageError) as caught:
             InvoiceClassifier(Settings(data_dir=tmp_path),client).classify_invoice('OCR')
         assert caught.value.code==code
+
+
+@pytest.mark.parametrize('status,code',[
+    (401,'openrouter_authentication'),(403,'openrouter_authentication'),
+    (402,'openrouter_insufficient_credit'),(429,'openrouter_rate_limit'),
+    (400,'openrouter_invalid_request'),(503,'openrouter_service_error'),
+])
+def test_openrouter_api_errors(tmp_path,status,code):
+    with OpenAI(api_key='TEST ONLY',base_url='https://openrouter.ai/api/v1',max_retries=0,
+                http_client=httpx.Client(transport=httpx.MockTransport(
+                    lambda request:httpx.Response(status,json={'error':{'message':'test error','code':status}})))) as client:
+        with pytest.raises(StageError) as caught:
+            InvoiceClassifier(Settings(data_dir=tmp_path),client).classify_invoice('OCR')
+        assert caught.value.code==code
+
+
+def test_default_client_uses_openrouter(tmp_path,monkeypatch):
+    from backend.services import invoice_classifier
+    calls=[]
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200,json=completion(proposal()))
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http_client:
+        monkeypatch.setattr(invoice_classifier,'OpenAI',lambda **kwargs:OpenAI(**kwargs,http_client=http_client))
+        settings=Settings(data_dir=tmp_path,openrouter_key='TEST OPENROUTER KEY',reasoning_effort='low')
+        result=InvoiceClassifier(settings).classify_invoice('OCR')
+    assert str(calls[0].url)=='https://openrouter.ai/api/v1/chat/completions'
+    assert calls[0].headers['authorization']=='Bearer TEST OPENROUTER KEY'
+    assert json.loads(calls[0].content)['reasoning']=={'effort':'low'}
+    assert result['usage']['total_tokens']==30
+
+
+def test_health_reports_openrouter_configuration(env):
+    health=env.client.get('/api/health').json()
+    assert health['openrouter']=={'configured':False,'model':'qwen/qwen3.8-27b'}
