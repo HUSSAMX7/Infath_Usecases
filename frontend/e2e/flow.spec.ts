@@ -1,6 +1,41 @@
 import {test,expect} from '@playwright/test';
 import path from 'node:path';
 
+test('regex comparison uses saved OCR, retains AI result, and saves the chosen review source',async({page,request})=>{
+  await page.goto('/');
+  await page.getByLabel('رفع ملفات الفواتير').setInputFiles(path.resolve('../.local/e2e-fixtures/invoice.png'));
+  await expect(page.getByRole('heading',{name:'راجع، ثم اعتمد'})).toBeVisible();
+  const id=new URL(page.url()).searchParams.get('invoice');
+  const before=await (await request.get(`/api/invoices/${id}`)).json();
+  await page.getByRole('button',{name:'استخراج بـRegex',exact:true}).click();
+  await expect(page.getByText('لم يُقترح تصنيف')).toBeVisible();
+  await expect(page.getByLabel('اسم المورد',{exact:true})).toHaveValue('');
+  await page.getByRole('button',{name:'نتيجة النموذج المحفوظة',exact:true}).click();
+  await expect(page.getByLabel('اسم المورد',{exact:true})).toHaveValue('المورد');
+  await page.getByRole('button',{name:'نتيجة Regex',exact:true}).click();
+  const refreshResponse=page.waitForResponse(response=>response.url().endsWith('/extract-regex?refresh=true')&&response.request().method()==='POST');
+  await page.getByRole('button',{name:'إعادة الاستخراج بـRegex',exact:true}).click();
+  const refreshed=await (await refreshResponse).json();
+  expect(refreshed.regex_result.model).toBe('Regex + table parser v2');
+  expect(refreshed.ai_proposal).toEqual(before.ai_proposal);
+  await page.getByLabel('اسم المورد',{exact:true}).fill('مراجعة Regex');
+  await page.getByRole('checkbox').check();
+  await expect(page.getByRole('button',{name:'اعتماد المراجعة'})).toBeEnabled();
+  await page.getByRole('button',{name:'اعتماد المراجعة'}).click();
+  await expect(page.getByText('تم اعتماد المراجعة وحفظ النتيجة.')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'مراجعة Regex',exact:true})).toBeVisible();
+  const after=await (await request.get(`/api/invoices/${id}`)).json();
+  expect(after.ai_proposal).toEqual(before.ai_proposal);
+  expect(after.pages).toEqual(before.pages);
+  expect(after.review_source).toBe('regex');
+  expect(after.final_data.supplier_name).toBe('مراجعة Regex');
+  expect(after.regex_result.method).toBe('regex');
+  expect(after.review_regex_revision).toBe(after.regex_result.revision);
+  await page.reload();
+  await expect(page.getByLabel('اسم المورد',{exact:true})).toHaveValue('مراجعة Regex');
+  await page.screenshot({path:path.resolve('../.local/verification/regex-v2-e2e.png'),fullPage:true});
+});
+
 test('upload → OCR → analysis → corrected human review → persistent result',async({page,request})=>{
   const pageErrors:string[]=[];page.on('pageerror',error=>pageErrors.push(error.message));
   await page.goto('/');

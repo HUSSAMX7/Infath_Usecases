@@ -58,15 +58,17 @@ class InvoiceWorker:
             active_page = None
             stage = 'analysis'
             text = '\n\n'.join(f'--- PAGE {p["number"]} ---\n{p["text"]}' for p in pages)
-            self.store.update(invoice_id, {'stage': stage, 'ocr_text': text, 'current_page': None, 'llm_input': text})
+            self.store.update(invoice_id, {'stage': stage, 'ocr_text': text, 'current_page': None, 'analysis_input': text})
             if self.stopped.is_set():
                 raise StageError('interrupted', 'توقفت المعالجة قبل التحليل. يمكنك إعادة المحاولة.')
             result = self.classifier.classify_invoice(text)
             proposal = Proposal.model_validate(result['proposal'])
-            warnings = [w.model_dump() for w in validate_invoice(proposal.extracted_data, proposal.items)]
-            status = 'needs_review' if (warnings or proposal.classification is None or proposal.confidence < self.threshold) else 'classified'
+            warnings = [w.model_dump() for w in validate_invoice(proposal.extracted_data, proposal.items)] + result.get('extraction_warnings', [])
+            method = result.get('method', 'openai')
+            status = 'needs_review' if (method == 'regex' or warnings or proposal.classification is None or proposal.confidence < self.threshold) else 'classified'
             self.store.update(invoice_id, {'status': status, 'stage': None, 'ai_proposal': result['proposal'],
-                                          'analysis': {k: v for k, v in result.items() if k != 'proposal'},
+                                          'analysis': {**{k: v for k, v in result.items() if k != 'proposal'}, 'method': method},
+                                          'llm_input': text if method == 'openai' else None,
                                           'warnings': warnings, 'error': None, 'attempt_seconds': time.perf_counter() - started})
         except StageError as error:
             if active_page:

@@ -16,6 +16,44 @@ const document:Document={id:'one',filename:'sample.png',status:'classified',stag
   attempt_seconds:null,warnings_acknowledged:false};
 
 describe('review and OCR reading',()=>{
+  it('requires a new review for a changed regex revision and submits that revision',async()=>{
+    vi.mocked(api.validate).mockResolvedValue({warnings:[]});vi.mocked(api.review).mockResolvedValue(document);
+    const revision='1'.repeat(64);
+    const compared:Document={...document,reviewed_by_user:true,review_source:'regex',review_regex_revision:'0'.repeat(64),
+      final_data:{...proposal.extracted_data,supplier_name:'Previous final'},
+      ai_proposal:{...proposal,extracted_data:{...proposal.extracted_data,supplier_name:'New extraction'},classification:null,confidence:null},
+      analysis:{method:'regex',model:'Regex v2',revision,seconds:.005,raw_response:{},usage:null}};
+    render(<ReviewForm source="regex" document={compared} onSaved={vi.fn()}/>);
+    expect(screen.getByLabelText('اسم المورد')).toHaveValue('New extraction');
+    await waitFor(()=>expect(screen.getByRole('button',{name:'اعتماد المراجعة'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'اعتماد المراجعة'}));
+    await waitFor(()=>expect(api.review).toHaveBeenCalled());
+    expect(vi.mocked(api.review).mock.calls[0][1].regex_revision).toBe(revision);
+    expect(compared.final_data?.supplier_name).toBe('Previous final');
+  });
+  it('keeps human corrections when the reviewed regex revision is unchanged',()=>{
+    vi.mocked(api.validate).mockResolvedValue({warnings:[]});
+    const revision='1'.repeat(64);
+    const reviewed:Document={...document,reviewed_by_user:true,review_source:'regex',review_regex_revision:revision,
+      final_data:{...proposal.extracted_data,supplier_name:'Human correction'},
+      analysis:{method:'regex',model:'Regex v2',revision,seconds:.005,raw_response:{},usage:null}};
+    render(<ReviewForm source="regex" document={reviewed} onSaved={vi.fn()}/>);
+    expect(screen.getByLabelText('اسم المورد')).toHaveValue('Human correction');
+  });
+  it('reviews regex separately from a previous AI review without presenting model confidence',async()=>{
+    vi.mocked(api.validate).mockResolvedValue({warnings:[]});vi.mocked(api.review).mockResolvedValue(document);
+    const regexProposal={...proposal,extracted_data:{...proposal.extracted_data,supplier_name:'Regex Supplier'},classification:null,confidence:null};
+    const compared:Document={...document,reviewed_by_user:true,review_source:'original',final_data:{...proposal.extracted_data,supplier_name:'Previous final'},ai_proposal:regexProposal,analysis:{method:'regex',model:'Regex',seconds:.005,raw_response:{},usage:null}};
+    render(<ReviewForm source="regex" document={compared} onSaved={vi.fn()}/>);
+    expect(screen.getByLabelText('اسم المورد')).toHaveValue('Regex Supplier');
+    expect(screen.getByText('لم يُقترح تصنيف')).toBeInTheDocument();
+    expect(screen.queryByText('تقدير الثقة')).not.toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByRole('button',{name:'اعتماد المراجعة'})).toBeEnabled());
+    fireEvent.click(screen.getByRole('button',{name:'اعتماد المراجعة'}));
+    await waitFor(()=>expect(api.review).toHaveBeenCalled());
+    expect(vi.mocked(api.review).mock.calls[0][1].source).toBe('regex');
+    expect(proposal.extracted_data.supplier_name).toBe('Original');
+  });
   it('changes final fields/category without mutating the AI proposal',async()=>{
     vi.mocked(api.validate).mockResolvedValue({warnings:[]});vi.mocked(api.review).mockResolvedValue(document);
     render(<ReviewForm document={document} onSaved={vi.fn()}/>);

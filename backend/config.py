@@ -15,6 +15,7 @@ class Settings:
     openai_key: str = field(default_factory=lambda: os.getenv('OPENAI_API_KEY', ''))
     openai_model: str = field(default_factory=lambda: os.getenv('OPENAI_MODEL', 'gpt-6-luna'))
     reasoning_effort: str = field(default_factory=lambda: os.getenv('OPENAI_REASONING_EFFORT', 'low'))
+    extraction_method: str = field(default_factory=lambda: os.getenv('EXTRACTION_METHOD', 'regex'))
     max_files: int = field(default_factory=lambda: int(os.getenv('MAX_UPLOAD_FILES', '10')))
     max_file_mb: int = field(default_factory=lambda: int(os.getenv('MAX_FILE_MB', '20')))
     max_pages: int = field(default_factory=lambda: int(os.getenv('MAX_PDF_PAGES', '10')))
@@ -24,3 +25,7 @@ class Settings:
     ocr_max_tokens: int = field(default_factory=lambda: int(os.getenv('LIGHTONOCR_MAX_TOKENS', '4096')))
     ocr_timeout: int = field(default_factory=lambda: int(os.getenv('LIGHTONOCR_TIMEOUT', '900')))
     ocr_base_url: str = field(default_factory=lambda: os.getenv('LIGHTONOCR_BASE_URL', '').rstrip('/'))
+
+    def __post_init__(self):
+        if self.extraction_method not in ('regex', 'openai'):
+            raise ValueError('EXTRACTION_METHOD must be regex or openai')

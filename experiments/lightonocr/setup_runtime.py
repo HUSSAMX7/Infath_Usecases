@@ -24,7 +24,7 @@ def digest(path):
     return h.hexdigest()
 
 
-def download(url, path, expected_sha=None, expected_size=None):
+def download(url, path, expected_sha=None, expected_size=None, workers=4):
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and (expected_size is None or path.stat().st_size == expected_size):
         if expected_sha is None or digest(path) == expected_sha:
@@ -75,8 +75,8 @@ def download(url, path, expected_sha=None, expected_size=None):
             print(f'{path.name}: completed range {start // 1000000}-{end // 1000000} MB', flush=True)
             return chunk_path
 
-        print(f'{path.name}: resume at {prefix_size / 1e6:.0f} MB; four range connections', flush=True)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        print(f'{path.name}: resume at {prefix_size / 1e6:.0f} MB; {workers} range connections', flush=True)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
             chunks = list(executor.map(get_range, ranges))
         assembled = path.with_suffix(path.suffix + '.assembled')
         with assembled.open('wb') as output:

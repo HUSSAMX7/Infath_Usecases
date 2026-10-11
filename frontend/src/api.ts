@@ -21,4 +21,5 @@ export const api = {
   validate: (id:string, payload:ReviewPayload) => request<{warnings:Warning[]}>(`/invoices/${id}/review/validate`,json(payload)),
   review: (id:string, payload:ReviewPayload) => request<Document>(`/invoices/${id}/review`,json(payload)),
   retry: (id:string) => request<Document>(`/invoices/${id}/retry`,json({})),
+  extractRegex: (id:string,refresh=false) => request<Document>(`/invoices/${id}/extract-regex${refresh?'?refresh=true':''}`,json({})),
 };

@@ -10,13 +10,17 @@ export interface Invoice {
   file_url: string; extracted_data: InvoiceData | null; classification: {key: Category | null; label: string | null; confidence: number | null};
   reviewed_by_user: boolean; reviewed_at: string | null; final_classification: Category | null; warnings: Warning[];
   error: {code: string; message: string; stage: string} | null;
+  review_source?: 'original' | 'regex' | null;
+  review_regex_revision?: string | null;
 }
+export interface Analysis {model: string; seconds: number; raw_response: unknown; usage: unknown; method?: 'regex' | 'openai'; extraction_warnings?: Warning[]; revision?: string}
 export interface Document extends Invoice {
   pages: Page[]; ai_proposal: Proposal | null; final_data: InvoiceData | null; final_items: LineItem[] | null;
-  ocr_text: string; ocr_model: string; llm_input: string | null; analysis: {model: string; seconds: number; raw_response: unknown; usage: unknown} | null;
+  ocr_text: string; ocr_model: string; llm_input: string | null; analysis_input?: string; analysis: Analysis | null;
+  regex_result?: Analysis & {proposal: Proposal} | null;
   failure_details: unknown; attempt_seconds: number | null; warnings_acknowledged: boolean;
 }
-export interface Health {ocr: {available: boolean; state: string; model: string}; openai: {configured: boolean; model: string}; limits: {max_files: number; max_file_mb: number; max_pages: number}}
-export interface ReviewPayload {extracted_data: InvoiceData; items: LineItem[]; final_classification: Category | null; acknowledge_warnings: boolean}
+export interface Health {ocr: {available: boolean; state: string; model: string}; openai: {configured: boolean; model: string}; extraction?: {method: 'regex'|'openai'; local: boolean}; limits: {max_files: number; max_file_mb: number; max_pages: number}}
+export interface ReviewPayload {extracted_data: InvoiceData; items: LineItem[]; final_classification: Category | null; acknowledge_warnings: boolean; source?: 'original' | 'regex'; regex_revision?: string}
 export const CATEGORIES: Record<Category, string> = {computers:'أجهزة كمبيوتر',mobile_devices:'جوالات وأجهزة لوحية',printers_office:'طابعات ومعدات مكتبية',tech_accessories:'ملحقات تقنية'};
 export const STATUS_LABELS: Record<Status, string> = {queued:'في الانتظار',processing:'قيد المعالجة',classified:'جاهزة للمراجعة',needs_review:'تحتاج مراجعة',reviewed:'تم الاعتماد',failed:'توقفت المعالجة'};

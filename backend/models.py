@@ -1,6 +1,6 @@
 from enum import Enum
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -62,6 +62,8 @@ class ReviewRequest(StrictModel):
     items: list[LineItem]
     final_classification: Category | None
     acknowledge_warnings: bool = False
+    source: Literal['original', 'regex'] = 'original'
+    regex_revision: Annotated[str, Field(pattern=r'^[a-f0-9]{64}$')] | None = None
 
 
 class WarningItem(StrictModel):
